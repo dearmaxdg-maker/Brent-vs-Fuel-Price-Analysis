@@ -1,0 +1,159 @@
+---
+title: "Brent vs Fuel Price Analysis"
+author: "Massimiliano Di Giuseppe"
+date: "2026-03-28"
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(readxl)
+library(dplyr)
+library(ggplot2)
+```
+
+## Introduction
+
+Fuel prices are often perceived as reacting asymmetrically to oil price movements: rising quickly when oil prices increase, but falling more slowly when they decrease.
+
+This project investigates whether weekly changes in Brent crude oil prices are associated with weekly changes in Italian fuel prices, and whether this relationship shows signs of asymmetry.
+
+## Research Question (ASK)
+
+The period chosen was one of significant upheaval, marked by the Covid-19 pandemic and the outbreak of the war in Ukraine.
+The data is sourced from official channels and the references are documented below
+
+## Data Collection (PREPARE)
+
+I used historical data for Brent (the benchmark that most influences fuel prices in Europe), fuel prices in Italy (available only on a weekly basis), and euro/dollar exchange rates for the period in question (to exclude exchange rate-related fluctuations from the analysis)
+
+## Data Preparation (PROCESS)
+
+The datasets were standardised in terms of values and formats in R and then merged.
+Prices in dollars were converted to euros. The price of crude oil was calculated per litre (159 litres per barrel), and the price of fuel at the pump, which was originally stated in euros per thousand litres, was converted to euros per litre.
+
+
+## Why Percentage Changes Were Used
+
+Percentage changes were preferred over raw values because they make Brent and fuel prices comparable on the same relative scale. This choice also makes weekly increases and decreases easier to interpret visually and statistically.
+
+## Exploratory Analysis in Excel (PRE-ANALYSIS)
+
+Excel was used in the first stage of the analysis to visually inspect the data and test different analytical choices.
+
+This exploratory phase included:
+
+- scatter plots of weekly percentage changes  
+- lagged comparison between Brent and fuel prices  
+- separate inspection of Brent upward and downward movements  
+- filtering extreme values to improve readability  
+
+
+
+```{r, echo=FALSE, out.width="80%"}
+knitr::include_graphics(c(
+  "Images/Brent_down_optimized_gasolio.png",
+  "Images/Brent_up_optimized_gasolio.png",
+  "Images/Brent_up_prev_week_optimized_gasolio.png",
+  "Images/Brent_Fuel_2019_2023.png"
+))
+```
+
+                        
+## Validation in R
+After the exploratory phase in Excel, the cleaned dataset was imported into R in order to create a reproducible workflow and calculate simple correlation measures.
+
+```{r}
+df <- read_excel(file.choose())
+
+df_clean <- df %>%
+  filter(Brent_pct >= -5, Brent_pct <= 5)
+```
+
+## Correlation Analysis (ANALYZE)
+  
+```{r}
+cor_pearson <- cor(
+  df_clean$Brent_pct,
+  df_clean$Gasolio_pct,
+  use = "complete.obs"
+)
+
+cor_lag <- cor(
+  df_clean$Brent_prev_pct,
+  df_clean$Gasolio_pct,
+  use = "complete.obs"
+)
+
+
+```
+The Pearson correlation between Brent and gasolio is approximately 0.005, indicating a very weak relationship.
+
+When considering a one-week lag, the correlation increases slightly to approximately 0.112, but remains weak.
+
+## Report and Visuals (SHARE)
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(df_clean, aes(x = Brent_pct, y = Gasolio_pct)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = FALSE) +
+  theme_minimal()
+```
+
+
+```{r}
+df_up <- df_clean %>% filter(Brent_pct > 0)
+df_down <- df_clean %>% filter(Brent_pct < 0)
+
+cor_up <- cor(df_up$Brent_pct, df_up$Gasolio_pct, use = "complete.obs")
+cor_down <- cor(df_down$Brent_pct, df_down$Gasolio_pct, use = "complete.obs")
+```
+
+```{r, echo=FALSE, results='asis'}
+cat("The correlation during upward Brent movements is approximately",
+    round(cor_up, 3),
+    ", while during downward movements it is approximately",
+    round(cor_down, 3), ".")
+```
+
+
+## Results
+The analysis suggests that the weekly relationship between Brent price changes and fuel price changes is weak.
+
+The lagged comparison provides only limited improvement, and the separation between upward and downward Brent movements does not reveal a strong asymmetric pattern.
+
+## Next Steps (ACT)
+
+- test the relationship with daily data instead of weekly data  
+- explore longer lag structures  
+- include taxes and distribution costs  
+- compare gasoline and diesel separately in more depth  
+
+## Limitations
+
+This project has some important limitations:
+
+- weekly data may smooth faster short-term reactions  
+- fuel prices are influenced by taxes, logistics, and commercial strategies  
+- correlation analysis alone cannot fully capture a complex market mechanism  
+
+## Conclusion
+
+Within the limits of this analysis, the data do not provide strong evidence of a clear short-term asymmetric relationship between Brent price changes and Italian fuel price changes.
+
+This suggests that the commonly perceived “rockets and feathers” behavior may be less evident in weekly aggregated data than public perception often assumes.
+
+
+## References
+
+- U.S. Energy Information Administration (EIA).  
+  https://fred.stlouisfed.org/series/DCOILBRENTEU  
+
+- Ministero dell’Ambiente e della Sicurezza Energetica (MASE).  
+  https://sisen.mase.gov.it/dgsaie/open-data  
+
+- Banca d’Italia – Exchange Rates.  
+  https://tassidicambio.bancaditalia.it/terzevalute-wf-ui-web/timeSeries  
+
